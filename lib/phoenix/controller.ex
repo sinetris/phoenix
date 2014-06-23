@@ -94,7 +94,7 @@ defmodule Phoenix.Controller do
 
   defmodule MyApp.Controllers.Users do
     def show(conn) do
-      render conn, "show", name: "José"
+      render conn, :html, "show", name: "José"
     end
   end
 
@@ -106,12 +106,14 @@ defmodule Phoenix.Controller do
     )
 
   """
-  defmacro render(conn, template, assigns \\ []) do
+  defmacro render(conn, format, template, assigns \\ []) do
     subview_module = view_module(__CALLER__.module, controller_name(__CALLER__.module))
     layout_module  = view_module(__CALLER__.module, "Layouts")
+    extension      = ext_from_format(format)
 
     quote do
       render_view unquote(conn),
+                  unquote(extension),
                   unquote(subview_module),
                   unquote(layout_module),
                   unquote(template),
@@ -119,10 +121,9 @@ defmodule Phoenix.Controller do
     end
   end
 
-  def render_view(conn, view_mod, layout_mod, template, assigns \\ []) do
+  def render_view(conn, extension, view_mod, layout_mod, template, assigns \\ []) do
     assigns      = Dict.merge(conn.assigns, assigns)
-    content_type = get_content_type(conn)
-    extension    = Mime.ext_from_type(content_type) || ""
+    content_type = Mime.type_from_ext(extension) || "text/plain"
     layout       = Dict.get(assigns, :layout, "application")
     assigns      = Dict.put_new(assigns, :within, {layout_mod, layout <> extension})
     status       = Dict.get(assigns, :status, 200)
@@ -177,4 +178,15 @@ defmodule Phoenix.Controller do
     |> Module.concat
   end
 
+  @doc """
+  Convert the atom format to a file extension
+
+  Examples
+
+  iex> Controller.ext_from_format(:html)
+  ".html"
+  """
+  def ext_from_format(format) do
+    ".#{to_string format}"
+  end
 end
